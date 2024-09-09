@@ -99,7 +99,7 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
 
 
   // add public path
-  if(process.env.NX_DESKTOP_FROM_DIST){
+  if(process.env.NX_DESKTOP_FROM_DIST || process.env.GH_PAGES){
     config.output.publicPath = './'
   }else{
     config.output.publicPath = '/'
