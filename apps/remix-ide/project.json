@@ -13,7 +13,7 @@
         "compiler": "babel",
         "outputPath": "dist/apps/remix-ide",
         "index": "apps/remix-ide/src/index.html",
-        "baseHref": "/",
+        "baseHref": "./",
         "main": "apps/remix-ide/src/index.tsx",
         "polyfills": "apps/remix-ide/src/polyfills.ts",
         "tsConfig": "apps/remix-ide/tsconfig.app.json",
