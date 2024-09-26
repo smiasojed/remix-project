@@ -28,19 +28,19 @@ export class compilerLoaderPlugin extends Plugin {
     }
     let binRes: AxiosResponse
     let wasmRes: AxiosResponse
-    // try {
-    //   // fetch normal builds
-    //   binRes = await axios(`${baseURLBin}/list.json`)
-    //   // fetch wasm builds
-    //   wasmRes = await axios(`${baseURLWasm}/list.json`)
-    // } catch (e) {
-    // }
-    // if (wasmRes.status === 200) {
-    //   response.wasmList = wasmRes.data.builds
-    // }
-    // if (binRes.status === 200) {
-    //   response.binList = binRes.data.builds
-    // }
+    try {
+      // fetch normal builds
+      binRes = await axios(`${baseURLBin}/list.json`)
+      // fetch wasm builds
+      wasmRes = await axios(`${baseURLWasm}/list.json`)
+    } catch (e) {
+    }
+    if (wasmRes.status === 200) {
+      response.wasmList = wasmRes.data.builds
+    }
+    if (binRes.status === 200) {
+      response.binList = binRes.data.builds
+    }
     response.baseURLBin = baseURLBin
     response.baseURLWasm = baseURLWasm
 
