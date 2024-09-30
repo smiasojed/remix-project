@@ -20,7 +20,7 @@ const OriginWarning = () => {
       window.location.hostname !== 'remix.ethereum.org' &&
       window.location.hostname !== 'localhost' &&
       window.location.hostname !== '127.0.0.1' &&
-      window.location.hostname !== 'smiasojed.gihub.io' &&
+      window.location.hostname !== 'smiasojed.github.io' &&
       window.location.hostname !== 'remix.polkadot.io'
     ) {
       setContent(`The Remix IDE has moved to http://remix.ethereum.org.\n
