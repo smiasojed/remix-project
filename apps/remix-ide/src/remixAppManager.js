@@ -92,7 +92,7 @@ let requiredModules = [ // services + layout views + system views
 const dependentModules = ['foundry', 'hardhat', 'truffle', 'slither']
 
 // const loadLocalPlugins = ['doc-gen', 'doc-viewer', 'etherscan', 'vyper', 'solhint', 'walletconnect', 'circuit-compiler', 'learneth', 'quick-dapp']
-const loadLocalPlugins = ['solhint', 'doc-gen', 'doc-viewer', 'walletconnect', 'quick-dapp']
+const loadLocalPlugins = ['solhint', 'doc-gen', 'doc-viewer', 'quick-dapp']
 
 const sensitiveCalls = {
   fileManager: ['writeFile', 'copyFile', 'rename', 'copyDir'],
