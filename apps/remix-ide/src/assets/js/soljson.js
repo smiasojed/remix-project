@@ -1,7 +1,7 @@
 //! This is the compiler worker executed byt Remix IDE
 //! It proxies requests to the solc proxy server
 let missingSources = [];
-let compilerBackend='https://remix-backend.parity-stg.parity.io/solc'
+let compilerBackend='https://remix-backend.polkadot.io/solc'
 
 // synchronous fetch
 function proxySync(cmd, input) {
