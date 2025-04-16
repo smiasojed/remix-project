@@ -26,7 +26,7 @@ const profile = {
     'readFile', 'copyFile', 'copyDir', 'rename', 'mkdir', 'readdir', 'dirList', 'fileList', 'remove', 'getCurrentFile', 'getFile',
     'getFolder', 'setFile', 'switchFile', 'refresh', 'getProviderOf', 'getProviderByName', 'getPathFromUrl', 'getUrlFromPath',
     'saveCurrentFile', 'setBatchFiles', 'isGitRepo', 'isFile', 'isDirectory', 'hasGitSubmodule', 'copyFolderToJson', 'diff',
-    'hasGitSubmodules'
+    'hasGitSubmodules', 'getOpenedFiles'
   ],
   kind: 'file-system'
 }
@@ -40,7 +40,7 @@ const errorMsg = {
 const createError = (err) => {
   return new Error(`${errorMsg[err.code]} ${err.message || ''}`)
 }
-class FileManager extends Plugin {
+export default class FileManager extends Plugin {
   mode: string
   openedFiles: any
   editor: any
@@ -271,7 +271,7 @@ class FileManager extends Plugin {
       } else {
         const ret = await this.setFileContent(path, data)
         this.emit('fileAdded', path)
-        return { newContent: ret, newpath: path }
+        return { newContent: ret, newPath: path }
       }
     } catch (e) {
       throw new Error(e)
@@ -351,7 +351,7 @@ class FileManager extends Plugin {
 
   async inDepthCopy(src: string, dest: string, customName?: string) {
     const content = await this.readdir(src)
-    let copiedFolderPath = !customName ? dest + '/' + `Copy_${helper.extractNameFromKey(src)}` : dest + '/' + helper.extractNameFromKey(src)
+    let copiedFolderPath = !customName ? dest + '/' + `Copy_${helper.extractNameFromKey(src)}` : dest + '/' + customName
     copiedFolderPath = await helper.createNonClashingDirNameAsync(copiedFolderPath, this)
 
     await this.mkdir(copiedFolderPath)

@@ -9,12 +9,11 @@ import { AppProvider } from './context/provider'
 import AppDialogs from './components/modals/dialogs'
 import DialogViewPlugin from './components/modals/dialogViewPlugin'
 import { appProviderContextType, onLineContext, platformContext } from './context/context'
-import { FormattedMessage, IntlProvider } from 'react-intl'
-import { CustomTooltip } from '@remix-ui/helper'
+import { IntlProvider } from 'react-intl'
 import { UsageTypes } from './types'
-import { AppState } from './interface'
 import { appReducer } from './reducer/app'
 import { appInitialState } from './state/app'
+import isElectron from 'is-electron'
 
 declare global {
   interface Window {
@@ -32,8 +31,10 @@ const RemixApp = (props: IRemixAppUi) => {
   const [hideSidePanel, setHideSidePanel] = useState<boolean>(false)
   const [hidePinnedPanel, setHidePinnedPanel] = useState<boolean>(true)
   const [maximiseLeftTrigger, setMaximiseLeftTrigger] = useState<number>(0)
+  const [enhanceLeftTrigger, setEnhanceLeftTrigger] = useState<number>(0)
   const [resetLeftTrigger, setResetLeftTrigger] = useState<number>(0)
   const [maximiseRightTrigger, setMaximiseRightTrigger] = useState<number>(0)
+  const [enhanceRightTrigger, setEnhanceRightTrigger] = useState<number>(0)
   const [resetRightTrigger, setResetRightTrigger] = useState<number>(0)
   const [online, setOnline] = useState<boolean>(true)
   const [locale, setLocale] = useState<{ code: string; messages: any }>({
@@ -43,7 +44,10 @@ const RemixApp = (props: IRemixAppUi) => {
   const sidePanelRef = useRef(null)
   const pinnedPanelRef = useRef(null)
 
-  const [appState, appStateDispatch] = useReducer(appReducer, appInitialState)
+  const [appState, appStateDispatch] = useReducer(appReducer, {
+    ...appInitialState,
+    showPopupPanel: !window.localStorage.getItem('did_show_popup_panel') && !isElectron()
+  })
 
   useEffect(() => {
     async function activateApp() {
@@ -57,8 +61,9 @@ const RemixApp = (props: IRemixAppUi) => {
     if (props.app) {
       activateApp()
     }
-    const hadUsageTypeAsked = localStorage.getItem('hadUsageTypeAsked')
-    if (props.app.showMatamo) {
+    let hadUsageTypeAsked = localStorage.getItem('hadUsageTypeAsked')
+
+    if (props.app.showMatomo) {
       // if matomo dialog is displayed, it will take care of calling "setShowEnterDialog",
       // if the user approves matomo tracking.
       // so "showEnterDialog" stays false
@@ -71,9 +76,40 @@ const RemixApp = (props: IRemixAppUi) => {
       }
     }
     if (hadUsageTypeAsked) {
+      // rewriting the data in user's local storage for consistency
+      switch (hadUsageTypeAsked) {
+      case '1': {
+        hadUsageTypeAsked ='beginner'
+        break
+      }
+      case '2': {
+        hadUsageTypeAsked ='prototyper'
+        break
+      }
+      case '3': {
+        hadUsageTypeAsked = 'advanced'
+        break
+      }
+      case '4': {
+        hadUsageTypeAsked = 'production'
+        break
+      }
+      default: {
+        // choosing beginner as default
+        hadUsageTypeAsked = 'beginner'
+        break
+      }
+      }
+      localStorage.setItem('hadUsageTypeAsked', hadUsageTypeAsked)
       _paq.push(['trackEvent', 'userEntry', 'usageType', hadUsageTypeAsked])
     }
   }, [])
+
+  useEffect(() => {
+    if (!appState.showPopupPanel) {
+      window.localStorage.setItem('did_show_popup_panel', 'true')
+    }
+  },[appState.showPopupPanel])
 
   function setListeners() {
     props.app.sidePanel.events.on('toggle', () => {
@@ -98,6 +134,12 @@ const RemixApp = (props: IRemixAppUi) => {
       })
     })
 
+    props.app.layout.event.on('enhancesidepanel', () => {
+      setEnhanceLeftTrigger((prev) => {
+        return prev + 1
+      })
+    })
+
     props.app.layout.event.on('resetsidepanel', () => {
       setResetLeftTrigger((prev) => {
         return prev + 1
@@ -106,6 +148,12 @@ const RemixApp = (props: IRemixAppUi) => {
 
     props.app.layout.event.on('maximisepinnedpanel', () => {
       setMaximiseRightTrigger((prev) => {
+        return prev + 1
+      })
+    })
+
+    props.app.layout.event.on('enhancepinnedpanel', () => {
+      setEnhanceRightTrigger((prev) => {
         return prev + 1
       })
     })
@@ -135,7 +183,7 @@ const RemixApp = (props: IRemixAppUi) => {
 
   const value: appProviderContextType = {
     settings: props.app.settings,
-    showMatamo: props.app.showMatamo,
+    showMatomo: props.app.showMatomo,
     appManager: props.app.appManager,
     showEnter: props.app.showEnter,
     modal: props.app.notification,
@@ -146,7 +194,6 @@ const RemixApp = (props: IRemixAppUi) => {
   const handleUserChosenType = async (type) => {
     setShowEnterDialog(false)
     localStorage.setItem('hadUsageTypeAsked', type)
-
     // Use the type to setup the UI accordingly
     switch (type) {
     case UsageTypes.Beginner: {
@@ -158,28 +205,26 @@ const RemixApp = (props: IRemixAppUi) => {
       //   await props.app.appManager.call('filePanel', 'createWorkspace', wName, 'playground')
       // }
       // await props.app.appManager.call('filePanel', 'switchToWorkspace', { name: wName, isLocalHost: false })
-
-      _paq.push(['trackEvent', 'enterDialog', 'usageType', 'beginner'])
-      _paq.push(['trackEvent', 'userEntry', 'usageType', 'beginner'])
       break
     }
     case UsageTypes.Advance: {
-      _paq.push(['trackEvent', 'enterDialog', 'usageType', 'advanced'])
-      _paq.push(['trackEvent', 'userEntry', 'usageType', 'advanced'])
+      // Here activate necessary plugins, walkthrough. Filter hometab features slides and plugins.
       break
     }
     case UsageTypes.Prototyper: {
-      _paq.push(['trackEvent', 'enterDialog', 'usageType', 'prototyper'])
-      _paq.push(['trackEvent', 'userEntry', 'usageType', 'prototyper'])
+      // Here activate necessary plugins, walkthrough. Filter hometab features slides and plugins.
       break
     }
     case UsageTypes.Production: {
-      _paq.push(['trackEvent', 'enterDialog', 'usageType', 'production'])
-      _paq.push(['trackEvent', 'userEntry', 'usageType', 'production'])
+      // Here activate necessary plugins, walkthrough. Filter hometab features slides and plugins.
       break
     }
     default: throw new Error()
     }
+    // enterDialog tracks first time users
+    // userEntry tracks both first time and returning users
+    _paq.push(['trackEvent', 'enterDialog', 'usageType', type])
+    _paq.push(['trackEvent', 'userEntry', 'usageType', type])
   }
 
   return (
@@ -205,6 +250,7 @@ const RemixApp = (props: IRemixAppUi) => {
                   {props.app.sidePanel.render()}
                 </div>
                 <DragBar
+                  enhanceTrigger={enhanceLeftTrigger}
                   resetTrigger={resetLeftTrigger}
                   maximiseTrigger={maximiseLeftTrigger}
                   minWidth={305}
@@ -222,6 +268,7 @@ const RemixApp = (props: IRemixAppUi) => {
                 {
                   !hidePinnedPanel &&
                   <DragBar
+                    enhanceTrigger={enhanceRightTrigger}
                     resetTrigger={resetRightTrigger}
                     maximiseTrigger={maximiseRightTrigger}
                     minWidth={331}
@@ -233,6 +280,7 @@ const RemixApp = (props: IRemixAppUi) => {
                 }
                 <div>{props.app.hiddenPanel.render()}</div>
               </div>
+              <div>{props.app.popupPanel.render()}</div>
               <div className="statusBar fixed-bottom">
                 {props.app.statusBar.render()}
               </div>

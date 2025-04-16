@@ -2,13 +2,14 @@ import React, { useState, useRef, useEffect, useReducer } from 'react' // eslint
 import { FormattedMessage, useIntl } from 'react-intl'
 import { isArray } from 'lodash'
 import Editor, { DiffEditor, loader, Monaco } from '@monaco-editor/react'
-import { AlertModal } from '@remix-ui/app'
+import { AppModal } from '@remix-ui/app'
 import { ConsoleLogs, QueryParams } from '@remix-project/remix-lib'
 import { reducerActions, reducerListener, initialState } from './actions/editor'
 import { solidityTokensProvider, solidityLanguageConfig } from './syntaxes/solidity'
 import { cairoTokensProvider, cairoLanguageConfig } from './syntaxes/cairo'
 import { zokratesTokensProvider, zokratesLanguageConfig } from './syntaxes/zokrates'
 import { moveTokenProvider, moveLanguageConfig } from './syntaxes/move'
+import { vyperTokenProvider, vyperLanguageConfig } from './syntaxes/vyper'
 import { tomlLanguageConfig, tomlTokenProvider } from './syntaxes/toml'
 import { monacoTypes } from '@remix-ui/editor'
 import { loadTypes } from './web-types'
@@ -22,6 +23,7 @@ import { RemixDefinitionProvider } from './providers/definitionProvider'
 import { RemixCodeActionProvider } from './providers/codeActionProvider'
 import './remix-ui-editor.css'
 import { circomLanguageConfig, circomTokensProvider } from './syntaxes/circom'
+import { noirLanguageConfig, noirTokensProvider } from './syntaxes/noir'
 import { IPosition } from 'monaco-editor'
 import { RemixInLineCompletionProvider } from './providers/inlineCompletionProvider'
 import { providers } from 'ethers'
@@ -170,7 +172,7 @@ export const EditorUI = (props: EditorUIProps) => {
   \t\t\t\t\t\t\t\t${intl.formatMessage({ id: 'editor.importantLinks.text1' })}: https://remix-project.org/\n
   \t\t\t\t\t\t\t\t${intl.formatMessage({ id: 'editor.importantLinks.text2' })}: https://remix-ide.readthedocs.io/en/latest/\n
   \t\t\t\t\t\t\t\tGithub: https://github.com/ethereum/remix-project\n
-  \t\t\t\t\t\t\t\tDiscord: https://discord.gg/mh9hFCKkEq\n
+  \t\t\t\t\t\t\t\tDiscord: https://discord.gg/mMNnEgsRzh\n
   \t\t\t\t\t\t\t\tMedium: https://medium.com/remix-ide\n
   \t\t\t\t\t\t\t\tX: https://x.com/ethereumremix\n
   `
@@ -248,6 +250,7 @@ export const EditorUI = (props: EditorUIProps) => {
         { token: 'keyword.selfdestruct', foreground: blueColor },
         { token: 'keyword.type ', foreground: blueColor },
         { token: 'keyword.gasleft', foreground: blueColor },
+        { token: 'function', foreground: blueColor, fontStyle: 'bold' },
 
         // specials
         { token: 'keyword.super', foreground: infoColor },
@@ -365,6 +368,10 @@ export const EditorUI = (props: EditorUIProps) => {
       monacoRef.current.editor.setModelLanguage(file.model, 'remix-circom')
     } else if (file.language === 'toml') {
       monacoRef.current.editor.setModelLanguage(file.model, 'remix-toml')
+    } else if (file.language === 'noir') {
+      monacoRef.current.editor.setModelLanguage(file.model, 'remix-noir')
+    } else if (file.language === 'python') {
+      monacoRef.current.editor.setModelLanguage(file.model, 'remix-vyper')
     }
   }, [props.currentFile, props.isDiff])
 
@@ -406,26 +413,6 @@ export const EditorUI = (props: EditorUIProps) => {
         options: {
           isWholeLine,
           inlineClassName: `${isWholeLine ? 'alert-info' : 'inline-class'}  border-0 highlightLine${decoration.position.start.line + 1}`,
-        },
-      }
-    }
-    if (typeOfDecoration === 'lineTextPerFile') {
-      const lineTextDecoration = decoration as lineText
-      return {
-        type: typeOfDecoration,
-        range: new monacoRef.current.Range(
-          lineTextDecoration.position.start.line + 1,
-          lineTextDecoration.position.start.column + 1,
-          lineTextDecoration.position.start.line + 1,
-          1024
-        ),
-        options: {
-          after: {
-            content: ` ${lineTextDecoration.content}`,
-            inlineClassName: `${lineTextDecoration.className}`,
-          },
-          afterContentClassName: `${lineTextDecoration.afterContentClassName}`,
-          hoverMessage: lineTextDecoration.hoverMessage,
         },
       }
     }
@@ -660,11 +647,26 @@ export const EditorUI = (props: EditorUIProps) => {
       }
     })
 
-    editor.onDidPaste((e) => {
+    editor.onDidPaste(async (e) => {
       if (!pasteCodeRef.current && e && e.range && e.range.startLineNumber >= 0 && e.range.endLineNumber >= 0 && e.range.endLineNumber - e.range.startLineNumber > 10) {
-        const modalContent: AlertModal = {
+        // get the file name
+        const pastedCode = editor.getModel().getValueInRange(e.range)
+        const pastedCodePrompt = intl.formatMessage({ id: 'editor.PastedCodeSafety' }, { content:pastedCode })
+
+        const modalContent: AppModal = {
           id: 'newCodePasted',
-          title: intl.formatMessage({ id: 'editor.title1' }),
+          title: "New code pasted",
+          okLabel: 'Ask RemixAI',
+          cancelLabel: 'Close',
+          cancelFn: () => {},
+          okFn: async () => {
+            await props.plugin.call('popupPanel', 'showPopupPanel', true)
+            setTimeout(async () => {
+              props.plugin.call('remixAI', 'chatPipe', 'vulnerability_check', pastedCodePrompt)
+            }, 500)
+            // add matamo event
+            _paq.push(['trackEvent', 'ai', 'remixAI', 'vulnerability_check_pasted_code'])
+          },
           message: (
             <div>
               {' '}
@@ -695,10 +697,9 @@ export const EditorUI = (props: EditorUIProps) => {
                 </div>
               </div>
             </div>
-          ),
+          )
         }
-        props.plugin.call('notification', 'alert', modalContent)
-        pasteCodeRef.current = true
+        props.plugin.call('notification', 'modal', modalContent)
         _paq.push(['trackEvent', 'editor', 'onDidPaste', 'more_than_10_lines'])
       }
     })
@@ -708,8 +709,7 @@ export const EditorUI = (props: EditorUIProps) => {
         const changes = e.changes;
         // Check if the change matches the current completion
         if (changes.some(change => change.text === inlineCompletionProvider.currentCompletion.item.insertText)) {
-          _paq.push(['trackEvent', 'ai', 'solcoder', inlineCompletionProvider.currentCompletion.task + '_accepted'])
-          inlineCompletionProvider.currentCompletion = null;
+          _paq.push(['trackEvent', 'ai', 'remixAI', inlineCompletionProvider.currentCompletion.task + '_accepted'])
         }
       }
     });
@@ -769,51 +769,56 @@ export const EditorUI = (props: EditorUIProps) => {
       contextMenuOrder: 0, // choose the order
       contextMenuGroupId: 'gtp', // create a new grouping
       keybindings: [
-        // Keybinding for Ctrl + D
-        monacoRef.current.KeyMod.CtrlCmd | monacoRef.current.KeyCode.KeyD
+        // Keybinding for Ctrl + H
+        monacoRef.current.KeyMod.CtrlCmd | monacoRef.current.KeyCode.KeyH,
       ],
       run: async () => {
         const unsupportedDocTags = ['@title'] // these tags are not supported by the current docstring parser
         const file = await props.plugin.call('fileManager', 'getCurrentFile')
         const content = await props.plugin.call('fileManager', 'readFile', file)
         const message = intl.formatMessage({ id: 'editor.generateDocumentationByAI' }, { content, currentFunction: currentFunction.current })
-        const cm = await props.plugin.call('solcoder', 'code_explaining', message)
 
-        const natSpecCom = "\n" + extractNatspecComments(cm)
-        const cln = await props.plugin.call('codeParser', "getLineColumnOfNode", currenFunctionNode)
-        const range = new monacoRef.current.Range(cln.start.line, cln.start.column, cln.start.line, cln.start.column)
+        // do not stream this response
+        const pipeMessage = `Generate the documentation for the function **${currentFunction.current}**`
+        await props.plugin.call('popupPanel', 'showPopupPanel', true)
+        setTimeout(async () => {
+        // const cm = await await props.plugin.call('remixAI', 'code_explaining', message)
+          const cm = await props.plugin.call('remixAI' as any, 'chatPipe', 'solidity_answer', message, '', pipeMessage)
+          const natSpecCom = "\n" + extractNatspecComments(cm)
+          const cln = await props.plugin.call('codeParser', "getLineColumnOfNode", currenFunctionNode)
+          const range = new monacoRef.current.Range(cln.start.line, cln.start.column, cln.start.line, cln.start.column)
+          const lines = natSpecCom.split('\n')
+          const newNatSpecCom = []
 
-        const lines = natSpecCom.split('\n')
-        const newNatSpecCom = []
+          for (let i = 0; i < lines.length; i++) {
+            let cont = false
 
-        for (let i = 0; i < lines.length; i++) {
-          let cont = false
-
-          for (let j = 0; j < unsupportedDocTags.length; j++) {
-            if (lines[i].includes(unsupportedDocTags[j])) {
-              cont = true
-              break
+            for (let j = 0; j < unsupportedDocTags.length; j++) {
+              if (lines[i].includes(unsupportedDocTags[j])) {
+                cont = true
+                break
+              }
             }
+            if (cont) {continue}
+
+            if (i <= 1) { newNatSpecCom.push(' '.repeat(cln.start.column) + lines[i].trimStart()) }
+            else { newNatSpecCom.push(' '.repeat(cln.start.column + 1) + lines[i].trimStart()) }
           }
-          if (cont) {continue}
 
-          if (i <= 1) { newNatSpecCom.push(' '.repeat(cln.start.column) + lines[i].trimStart()) }
-          else { newNatSpecCom.push(' '.repeat(cln.start.column + 1) + lines[i].trimStart()) }
-        }
+          // TODO: activate the provider to let the user accept the documentation suggestion
+          // const provider = new RemixSolidityDocumentationProvider(natspecCom)
+          // monacoRef.current.languages.registerInlineCompletionsProvider('solidity', provider)
 
-        // TODO: activate the provider to let the user accept the documentation suggestion
-        // const provider = new RemixSolidityDocumentationProvider(natspecCom)
-        // monacoRef.current.languages.registerInlineCompletionsProvider('solidity', provider)
+          editor.executeEdits('clipboard', [
+            {
+              range: range,
+              text: newNatSpecCom.join('\n'),
+              forceMoveMarkers: true,
+            },
+          ]);
 
-        editor.executeEdits('clipboard', [
-          {
-            range: range,
-            text: newNatSpecCom.join('\n'),
-            forceMoveMarkers: true,
-          },
-        ]);
-
-        _paq.push(['trackEvent', 'ai', 'solcoder', 'generateDocumentation'])
+          _paq.push(['trackEvent', 'ai', 'remixAI', 'generateDocumentation'])
+        })
       },
     }
 
@@ -823,16 +828,15 @@ export const EditorUI = (props: EditorUIProps) => {
       label: intl.formatMessage({ id: 'editor.explainFunction' }),
       contextMenuOrder: 1, // choose the order
       contextMenuGroupId: 'gtp', // create a new grouping
-      keybindings: [
-        // Keybinding for Ctrl + Shift + E
-        monacoRef.current.KeyMod.CtrlCmd | monacoRef.current.KeyMod.Shift | monacoRef.current.KeyCode.KeyE
-      ],
       run: async () => {
         const file = await props.plugin.call('fileManager', 'getCurrentFile')
-        const content = await props.plugin.call('fileManager', 'readFile', file)
-        const message = intl.formatMessage({ id: 'editor.explainFunctionByAI' }, { content, currentFunction: currentFunction.current })
-        await props.plugin.call('solcoder', 'code_explaining', message, content)
-        _paq.push(['trackEvent', 'ai', 'solcoder', 'explainFunction'])
+        const context = await props.plugin.call('fileManager', 'readFile', file)
+        const message = intl.formatMessage({ id: 'editor.explainFunctionByAI' }, { content:context, currentFunction: currentFunction.current })
+        await props.plugin.call('popupPanel', 'showPopupPanel', true)
+        setTimeout(async () => {
+          await props.plugin.call('remixAI' as any, 'chatPipe', 'code_explaining', message, context)
+        }, 500)
+        _paq.push(['trackEvent', 'ai', 'remixAI', 'explainFunction'])
       },
     }
 
@@ -850,9 +854,13 @@ export const EditorUI = (props: EditorUIProps) => {
         const file = await props.plugin.call('fileManager', 'getCurrentFile')
         const content = await props.plugin.call('fileManager', 'readFile', file)
         const selectedCode = editor.getModel().getValueInRange(editor.getSelection())
+        const pipeMessage = intl.formatMessage({ id: 'editor.ExplainPipeMessage' }, { content:selectedCode })
 
-        await props.plugin.call('solcoder', 'code_explaining', selectedCode, content)
-        _paq.push(['trackEvent', 'ai', 'solcoder', 'explainFunction'])
+        await props.plugin.call('popupPanel', 'showPopupPanel', true)
+        setTimeout(async () => {
+          await props.plugin.call('remixAI' as any, 'chatPipe', 'code_explaining', selectedCode, content, pipeMessage)
+        }, 500)
+        _paq.push(['trackEvent', 'ai', 'remixAI', 'explainFunction'])
       },
     }
 
@@ -869,7 +877,9 @@ export const EditorUI = (props: EditorUIProps) => {
         monacoRef.current.KeyMod.Shift | monacoRef.current.KeyMod.Alt | monacoRef.current.KeyCode.KeyR,
       ],
       run: async () => {
-        const { nodesAtPosition } = await retrieveNodesAtPosition(props.editorAPI, props.plugin)
+        const position = editorRef.current.getPosition()
+        const offset = editorRef.current.getModel().getOffsetAt(position)
+        const { nodesAtPosition } = await retrieveNodesAtPosition(offset, props.plugin)
         // find the contract and get the nodes of the contract and the base contracts and imports
         if (nodesAtPosition && isArray(nodesAtPosition) && nodesAtPosition.length) {
           const freeFunctionNode = nodesAtPosition.find((node) => node.kind === 'freeFunction')
@@ -897,7 +907,7 @@ export const EditorUI = (props: EditorUIProps) => {
 
     const contextmenu = editor.getContribution('editor.contrib.contextmenu')
     const orgContextMenuMethod = contextmenu._onContextMenu
-    const onContextMenuHandlerForFreeFunction = async () => {
+    const onContextMenuHandlerForFreeFunction = async (offset: number) => {
       if (freeFunctionAction) {
         freeFunctionAction.dispose()
         freeFunctionAction = null
@@ -921,7 +931,7 @@ export const EditorUI = (props: EditorUIProps) => {
         return
       }
 
-      const { nodesAtPosition } = await retrieveNodesAtPosition(props.editorAPI, props.plugin)
+      const { nodesAtPosition } = await retrieveNodesAtPosition(offset, props.plugin)
       const freeFunctionNode = nodesAtPosition.find((node) => node.kind === 'freeFunction')
       if (freeFunctionNode) {
         executeFreeFunctionAction.label = intl.formatMessage({ id: 'editor.executeFreeFunction2' }, { name: freeFunctionNode.name })
@@ -949,7 +959,9 @@ export const EditorUI = (props: EditorUIProps) => {
     }
     contextmenu._onContextMenu = (...args) => {
       if (args[0]) args[0].event?.preventDefault()
-      onContextMenuHandlerForFreeFunction()
+      const position = args[0].target.position
+      const offset = editorRef.current.getModel().getOffsetAt(position)
+      onContextMenuHandlerForFreeFunction(offset)
         .then(() => orgContextMenuMethod.apply(contextmenu, args))
         .catch(() => orgContextMenuMethod.apply(contextmenu, args))
     }
@@ -988,10 +1000,15 @@ export const EditorUI = (props: EditorUIProps) => {
     monacoRef.current.languages.register({ id: 'remix-zokrates' })
     monacoRef.current.languages.register({ id: 'remix-move' })
     monacoRef.current.languages.register({ id: 'remix-circom' })
+    monacoRef.current.languages.register({ id: 'remix-vyper' })
     monacoRef.current.languages.register({ id: 'remix-toml' })
+    monacoRef.current.languages.register({ id: 'remix-noir' })
 
     // Allow JSON schema requests
     monacoRef.current.languages.json.jsonDefaults.setDiagnosticsOptions({ enableSchemaRequest: true })
+
+    // hide the module resolution error. We have to remove this when we know how to properly resolve imports.
+    monacoRef.current.languages.typescript.typescriptDefaults.setDiagnosticsOptions({ diagnosticCodesToIgnore: [2792]})
 
     // Register a tokens provider for the language
     monacoRef.current.languages.setMonarchTokensProvider('remix-solidity', solidityTokensProvider as any)
@@ -1008,9 +1025,13 @@ export const EditorUI = (props: EditorUIProps) => {
 
     monacoRef.current.languages.setMonarchTokensProvider('remix-circom', circomTokensProvider as any)
     monacoRef.current.languages.setLanguageConfiguration('remix-circom', circomLanguageConfig(monacoRef.current) as any)
+    monacoRef.current.languages.registerInlineCompletionsProvider('remix-circom', inlineCompletionProvider)
 
     monacoRef.current.languages.setMonarchTokensProvider('remix-toml', tomlTokenProvider as any)
     monacoRef.current.languages.setLanguageConfiguration('remix-toml', tomlLanguageConfig as any)
+
+    monacoRef.current.languages.setMonarchTokensProvider('remix-noir', noirTokensProvider as any)
+    monacoRef.current.languages.setLanguageConfiguration('remix-noir', noirLanguageConfig as any)
 
     monacoRef.current.languages.registerDefinitionProvider('remix-solidity', new RemixDefinitionProvider(props, monaco))
     monacoRef.current.languages.registerDocumentHighlightProvider('remix-solidity', new RemixHighLightProvider(props, monaco))
@@ -1019,6 +1040,11 @@ export const EditorUI = (props: EditorUIProps) => {
     monacoRef.current.languages.registerCompletionItemProvider('remix-solidity', new RemixCompletionProvider(props, monaco))
     monacoRef.current.languages.registerInlineCompletionsProvider('remix-solidity', inlineCompletionProvider)
     monaco.languages.registerCodeActionProvider('remix-solidity', new RemixCodeActionProvider(props, monaco))
+
+    monacoRef.current.languages.setMonarchTokensProvider('remix-vyper', vyperTokenProvider as any)
+    monacoRef.current.languages.setLanguageConfiguration('remix-vyper', vyperLanguageConfig as any)
+    monacoRef.current.languages.registerCompletionItemProvider('remix-vyper', new RemixCompletionProvider(props, monaco))
+    monacoRef.current.languages.registerInlineCompletionsProvider('remix-vyper', inlineCompletionProvider)
 
     loadTypes(monacoRef.current)
   }

@@ -1,14 +1,13 @@
 import { ReadBlobResult, ReadCommitResult } from "isomorphic-git";
 import React from "react";
-import { fileStatus, fileStatusMerge, setRemoteBranchCommits, resetRemoteBranchCommits, setBranches, setCanCommit, setCommitChanges, setCommits, setCurrentBranch, setGitHubUser, setLoading, setRemoteBranches, setRemotes, setRepos, setUpstream, setLocalBranchCommits, setBranchDifferences, setRemoteAsDefault, setScopes, setLog, clearLog, setUserEmails, setCurrenHead, setStoragePayload, resetBranchDifferences, setGitLogCount, setTimestamp } from "../state/gitpayload";
-import { GitHubUser, branch, commitChange, gitActionDispatch, statusMatrixType, gitState, branchDifference, remote, gitLog, fileStatusResult, customGitApi, IGitApi, cloneInputType, fetchInputType, pullInputType, pushInputType, checkoutInput, rmInput, addInput, repository, userEmails, storage, gitMatomoEventTypes } from '../types';
+import { fileStatus, fileStatusMerge, setRemoteBranchCommits, resetRemoteBranchCommits, setBranches, setCanCommit, setCommitChanges, setCommits, setCurrentBranch, setGitHubUser, setLoading, setRemoteBranches, setRemotes, setRepos, setUpstream, setLocalBranchCommits, setBranchDifferences, setRemoteAsDefault, setScopes, setLog, clearLog, setUserEmails, setCurrenHead, setStoragePayload, resetBranchDifferences, setTimestamp, setGitLogCount } from "../state/gitpayload";
+import { gitActionDispatch, statusMatrixType, gitState, gitLog, fileStatusResult, storage, gitMatomoEventTypes } from '../types';
 import { removeSlash } from "../utils";
 import { disableCallBacks, enableCallBacks } from "./listeners";
 import { ModalTypes, appActionTypes, AppAction } from "@remix-ui/app";
 import { sendToMatomo, setFileDecorators } from "./pluginActions";
 import { Plugin } from "@remixproject/engine";
-import { CustomRemixApi } from "@remix-api";
-import { app } from "electron";
+import { addInputType, branch, branchDifference, checkoutInputType, cloneInputType, commitChange, CustomRemixApi, fetchInputType, GitHubUser, pullInputType, pushInputType, remote, rmInputType, userEmails } from "@remix-api";
 
 export const fileStatuses = [
   ["new,untracked", 0, 2, 0], // new, untracked
@@ -21,7 +20,7 @@ export const fileStatuses = [
   ["deleted,unstaged", 1, 0, 1], // deleted, unstaged
   ["deleted,staged", 1, 0, 0],
   ["unmodified", 1, 1, 3],
-  ["deleted,not in git", 0, 0, 3],
+  ["added,deleted", 0, 0, 3],
   ["unstaged,modified", 1, 2, 0]
 ];
 
@@ -42,20 +41,21 @@ export const setPlugin = (p: Plugin, dispatcher: React.Dispatch<gitActionDispatc
 
 export const init = async () => {
   await sendToMatomo(gitMatomoEventTypes.INIT)
-  await plugin.call('dgitApi', "init");
+  await plugin.call('dgitApi', 'init');
   dispatch(setTimestamp(Date.now()))
   await getBranches();
 }
 
 export const getBranches = async () => {
 
-  const branches = await plugin.call('dgitApi', "branches")
+  const branches = await plugin.call('dgitApi', 'branches')
 
   dispatch(setBranches(branches));
+  await showCurrentBranch();
 }
 export const getRemotes = async () => {
 
-  const remotes: remote[] = await plugin.call('dgitApi', "remotes");
+  const remotes: remote[] = await plugin.call('dgitApi', 'remotes');
 
   dispatch(setRemotes(remotes));
 }
@@ -65,6 +65,7 @@ export const setUpstreamRemote = async (remote: remote) => {
 }
 
 export const getFileStatusMatrix = async (filepaths: string[]) => {
+
   dispatch(setLoading(true))
   const fileStatusResult = await statusMatrix(filepaths);
   fileStatusResult.map((m) => {
@@ -80,6 +81,7 @@ export const getFileStatusMatrix = async (filepaths: string[]) => {
     dispatch(fileStatusMerge(fileStatusResult))
     setFileDecorators(fileStatusResult)
   }
+
   dispatch(setLoading(false))
 }
 
@@ -99,7 +101,6 @@ export const getCommits = async (depth: number) => {
 }
 
 export const gitlog = async (depth: number) => {
-  console.log('gitlog start')
   dispatch(setLoading(true))
   let commits = []
   try {
@@ -109,6 +110,7 @@ export const gitlog = async (depth: number) => {
   dispatch(setCommits(commits))
   await showCurrentBranch()
   dispatch(setLoading(false))
+
 }
 
 export const setStateGitLogCount = async (count: number) => {
@@ -130,7 +132,6 @@ export const showCurrentBranch = async () => {
     const currentHead = await getCommitFromRef('HEAD');
     dispatch(setCurrenHead(currentHead));
   } catch (e) {
-    console.log(e)
     dispatch(setCurrenHead(''));
   }
 
@@ -200,7 +201,7 @@ export const commit = async (message: string = "") => {
 
     sendToGitLog({
       type: 'success',
-      message: `Commited: ${sha}`
+      message: `Committed: ${sha}`
     })
 
   } catch (err) {
@@ -235,7 +236,7 @@ export const addall = async (files: fileStatusResult[]) => {
   }
 }
 
-export const add = async (filepath: addInput) => {
+export const add = async (filepath: addInputType) => {
   await sendToMatomo(gitMatomoEventTypes.ADD)
   try {
     if (typeof filepath.filepath === "string") {
@@ -252,7 +253,7 @@ export const add = async (filepath: addInput) => {
 
 }
 
-const getLastCommmit = async () => {
+const getLastCommit = async () => {
   try {
     let currentcommitoid = "";
     currentcommitoid = await getCommitFromRef("HEAD");
@@ -262,7 +263,7 @@ const getLastCommmit = async () => {
   }
 }
 
-export const rm = async (args: rmInput) => {
+export const rm = async (args: rmInputType) => {
   await sendToMatomo(gitMatomoEventTypes.RM)
   await plugin.call('dgitApi', 'rm', {
     filepath: removeSlash(args.filepath),
@@ -274,7 +275,7 @@ export const rm = async (args: rmInput) => {
 }
 
 export const checkoutfile = async (filename: string) => {
-  const oid = await getLastCommmit();
+  const oid = await getLastCommit();
   if (oid)
     try {
       const commitOid = await plugin.call('dgitApi', 'resolveref', {
@@ -299,7 +300,7 @@ export const checkoutfile = async (filename: string) => {
     }
 }
 
-export const checkout = async (cmd: checkoutInput) => {
+export const checkout = async (cmd: checkoutInputType) => {
   sendToMatomo(gitMatomoEventTypes.CHECKOUT)
   await disableCallBacks();
   await plugin.call('fileManager', 'closeAllFiles')
@@ -443,7 +444,7 @@ const parseError = async (e: any) => {
       type: ModalTypes.alert
     })
   } else {
-    await sendToMatomo(gitMatomoEventTypes.ERROR, ['UKNOWN'])
+    await sendToMatomo(gitMatomoEventTypes.ERROR, ['UNKNOWN'])
     await plugin.call('notification', 'alert' as any, {
       title: 'Error',
       message: e.message
@@ -531,6 +532,7 @@ export const remoteBranches = async (owner: string, repo: string) => {
 }
 
 export const remoteCommits = async (url: string, branch: string, length: number) => {
+
   const urlParts = url.split("/");
 
   // check if it's github
@@ -575,7 +577,7 @@ export const saveGitHubCredentials = async (credentials: { username: string, ema
         await plugin.call('notification', 'alert', {
           title: 'Error',
           id: 'github-credentials-error',
-          message: `Could not retreive the user from GitHub. You can continue to use the app, but you will not be able to push or pull.`
+          message: `Could not retrieve the user from GitHub. You can continue to use the app, but you will not be able to push or pull.`
         })
       }
       dispatch(setGitHubUser({
@@ -677,7 +679,9 @@ export const loadGitHubUserFromToken = async () => {
 }
 
 export const statusMatrix = async (filepaths: string[]) => {
+
   const matrix = await plugin.call('dgitApi', 'status', { ref: "HEAD", filepaths: filepaths || ['.']});
+
   const result = (matrix || []).map((x) => {
     return {
       filename: `/${x.shift()}`,
@@ -740,6 +744,7 @@ export const diff = async (commitChange: commitChange) => {
 }
 
 export const getCommitChanges = async (oid1: string, oid2: string, branch?: branch, remote?: remote) => {
+
   try {
     let log
     try {
@@ -752,6 +757,7 @@ export const getCommitChanges = async (oid1: string, oid2: string, branch?: bran
       console.log(e, 'log error')
     }
     if (log) {
+
       const foundCommit = log.find((commit: ReadCommitResult) => commit.oid === oid2)
       if (!foundCommit && remote) {
 
@@ -788,6 +794,7 @@ async function getRepoDetails(url: string) {
 }
 
 export const fetchBranch = async (branch: branch, page: number) => {
+
   if (!branch.remote || !branch.remote.url) return
   const token = await tokenWarning();
   if (page == 1) {
@@ -807,6 +814,7 @@ export const fetchBranch = async (branch: branch, page: number) => {
 }
 
 export const getBranchDifferences = async (branch: branch, remote: remote, state: gitState) => {
+
   if (!remote && state) {
     if (state.defaultRemote) {
       remote = state.defaultRemote

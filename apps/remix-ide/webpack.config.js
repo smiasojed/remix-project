@@ -128,7 +128,14 @@ module.exports = composePlugins(withNx(), withReact(), (config) => {
     })
   )
 
-  // souce-map loader
+  // set the define plugin to load the WALLET_CONNECT_PROJECT_ID
+  config.plugins.push(
+    new webpack.DefinePlugin({
+      WALLET_CONNECT_PROJECT_ID: JSON.stringify(process.env.WALLET_CONNECT_PROJECT_ID)
+    })
+  )
+
+  // source-map loader
   config.module.rules.push({
     test: /\.js$/,
     use: ['source-map-loader'],

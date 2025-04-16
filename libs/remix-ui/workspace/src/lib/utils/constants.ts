@@ -13,6 +13,8 @@ export const TEMPLATE_NAMES = {
   'semaphore': 'Semaphore',
   'hashchecker': 'Hash Checker',
   'rln': 'Rate-Limiting Nullifier',
+  'multNr': 'Simple Multiplier',
+  'stealthDropNr': 'Stealth Drop',
   'breakthroughLabsUniswapv4Hooks': 'Breakthrough-Labs Uniswapv4Hooks',
   'uniswapV4Template': 'Uniswap v4 Template',
   'uniswapV4HookBookMultiSigSwapHook': 'Uniswap V4 HookBook MultiSigSwapHook',
@@ -88,6 +90,36 @@ export const TEMPLATE_METADATA: Record<string, TemplateType> = {
     name: 'cookbookdev',
     endpoint: 'openContract',
     params: ['multi-collection-nft-with-burnable-nfts-and-pausable-transfers']
+  },
+  'OpenSea-Seaport': {
+    type: 'plugin',
+    name: 'cookbookdev',
+    endpoint: 'openProtocol',
+    params: ['OpenSea-Seaport']
+  },
+  'Ethereum-Name-Service': {
+    type: 'plugin',
+    name: 'cookbookdev',
+    endpoint: 'openProtocol',
+    params: ['Ethereum-Name-Service']
+  },
+  'Umbra-Cash': {
+    type: 'plugin',
+    name: 'cookbookdev',
+    endpoint: 'openProtocol',
+    params: ['Umbra-Cash']
+  },
+  'Aave-V3': {
+    type: 'plugin',
+    name: 'cookbookdev',
+    endpoint: 'openProtocol',
+    params: ['Aave-V3']
+  },
+  'ChainLink': {
+    type: 'plugin',
+    name: 'cookbookdev',
+    endpoint: 'openProtocol',
+    params: ['ChainLink']
   }
 }
 

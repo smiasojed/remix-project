@@ -11,6 +11,8 @@ import axios from 'axios'
 
 import './css/style.css'
 import { CustomTooltip } from '@remix-ui/helper'
+import { endpointUrls } from '@remix-endpoints-helper'
+
 const _paq = (window._paq = window._paq || [])
 
 export const ContractSelection = (props: ContractSelectionProps) => {
@@ -267,10 +269,10 @@ export const ContractSelection = (props: ContractSelectionProps) => {
     const filePath = `.workspaces/${fileName}`
     const file = await plugin.call('fileManager', 'readFile', filePath)
 
-    const urlResponse = await axios.post(`https://solidityscan.remixproject.org/uploadFile`, { file, fileName })
+    const urlResponse = await axios.post(`${endpointUrls.solidityScan}/uploadFile`, { file, fileName })
 
     if (urlResponse.data.status === 'success') {
-      const ws = new WebSocket('wss://solidityscan.remixproject.org/solidityscan')
+      const ws = new WebSocket(endpointUrls.solidityScanWebSocket)
 
       ws.addEventListener('error', console.error);
 
@@ -306,12 +308,13 @@ export const ContractSelection = (props: ContractSelectionProps) => {
             okLabel: 'Close'
           }
           await plugin.call('notification', 'modal', modal)
+          ws.close()
         } else if (data.type === "scan_status" && data.payload.scan_status === "scan_done") {
           // Message on successful scan
           _paq.push(['trackEvent', 'solidityCompiler', 'solidityScan', 'scanSuccess'])
           const url = data.payload.scan_details.link
 
-          const { data: scanData } = await axios.post('https://solidityscan.remixproject.org/downloadResult', { url })
+          const { data: scanData } = await axios.post(`https://${endpointUrls.solidityScan}/downloadResult`, { url })
           const scanReport: ScanReport = scanData.scan_report
           if (scanReport?.multi_file_scan_details?.length) {
             for (const template of scanReport.multi_file_scan_details) {
@@ -336,9 +339,12 @@ export const ContractSelection = (props: ContractSelectionProps) => {
             }
             await plugin.call('notification', 'modal', modal)
           }
-
+          ws.close()
         }
       })
+    } else {
+      await plugin.call('notification', 'toast', 'Error in processing data to scan')
+      console.error(urlResponse.data && urlResponse.data.error ? urlResponse.data.error : urlResponse)
     }
   }
 
@@ -370,7 +376,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
     // define swarm logo
     <>
       {contractList.length ? (
-        <section className="remixui_compilerSection pt-3">
+        <section className="px-4 pt-3">
           {/* Select Compiler Version */}
           <div className="mb-3">
             <label className="remixui_compilerLabel form-check-label" htmlFor="compiledContracts">
@@ -522,7 +528,7 @@ export const ContractSelection = (props: ContractSelectionProps) => {
           </article>
         </section>
       ) : (
-        <section className="remixui_container clearfix">
+        <section className="m-0 clearfix">
           <article className="px-2 mt-2 pb-0 d-flex w-100">
             <span className="mt-2 mx-3 w-100 alert alert-warning" role="alert">
               <FormattedMessage id="solidity.noContractCompiled" />

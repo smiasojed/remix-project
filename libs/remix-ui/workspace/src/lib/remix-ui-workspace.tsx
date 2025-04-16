@@ -17,7 +17,9 @@ import { customAction } from '@remixproject/plugin-api'
 import { AppContext, appPlatformTypes, platformContext } from '@remix-ui/app'
 import { ElectronMenu } from './components/electron-menu'
 import { ElectronWorkspaceName } from './components/electron-workspace-name'
-import { branch, GitHubUser, gitUIPanels, userEmails } from '@remix-ui/git'
+import { branch } from '@remix-api'
+import { gitUIPanels } from '@remix-ui/git'
+import { createModalMessage } from './components/createModal'
 
 const _paq = (window._paq = window._paq || [])
 
@@ -335,6 +337,26 @@ export function Workspace() {
     )
   }
 
+  const [counter, setCounter] = useState(1)
+  const createBlankWorkspace = async () => {
+    const username = await global.plugin.call('settings', 'get', 'settings/github-user-name')
+    const email = await global.plugin.call('settings', 'get', 'settings/github-email')
+    const gitNotSet = !username || !email
+    const defaultName = await global.plugin.call('filePanel', 'getAvailableWorkspaceName', 'blank')
+    let workspace = defaultName
+    let gitInit = false
+    setCounter((previous) => {
+      return previous + 1
+    })
+    global.modal(
+      intl.formatMessage({ id: 'filePanel.workspace.createBlank' }),
+      await createModalMessage(workspace ? workspace: `blank - ${counter}`, gitNotSet, (value) => { workspace = value }, (value) => {gitInit = value === 'on'}),
+      intl.formatMessage({ id: 'filePanel.ok' }),
+      () => global.dispatchCreateWorkspace(workspace ? workspace: `blank - ${counter}`, 'blank', null, gitInit),
+      intl.formatMessage({ id: 'filePanel.cancel' })
+    )
+  }
+
   const saveSampleCodeWorkspace = () => {
     const workspaceName = global.plugin.getAvailableWorkspaceName('code-sample')
     global.modal(
@@ -499,6 +521,7 @@ export function Workspace() {
     try {
       await global.dispatchSwitchToWorkspace(name)
       global.dispatchHandleExpandPath([])
+      _paq.push(['trackEvent', 'Workspace', 'switchWorkspace', name])
     } catch (e) {
       global.modal(
         intl.formatMessage({ id: 'filePanel.workspace.switch' }),
@@ -681,6 +704,14 @@ export function Workspace() {
       global.dispatchRunScript(path)
     } catch (error) {
       global.toast(intl.formatMessage({ id: 'filePanel.runScriptFailed' }))
+    }
+  }
+
+  const signTypedData = async (path: string) => {
+    try {
+      global.dispatchSignTypedData(path)
+    } catch (error) {
+      global.toast(intl.formatMessage({ id: 'filePanel.signTypedDataError' }))
     }
   }
 
@@ -895,6 +926,86 @@ export function Workspace() {
     _paq.push(['trackEvent', 'Workspace', 'GIT', 'login'])
   }
 
+  const IsGitRepoDropDownMenuItem = (props: { isGitRepo: boolean, mName: string}) => {
+    return (
+      <>
+        {props.isGitRepo ? (
+          <div className="d-flex justify-content-between">
+            <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="pl-3">{props.mName}</span>}</span>
+            <i className="fas fa-code-branch pt-1"></i>
+          </div>
+        ) : (
+          <span>{currentWorkspace === props.mName ? <span>&#10003; {props.mName} </span> : <span className="pl-3">{props.mName}</span>}</span>
+        )}
+      </>
+    )
+  }
+
+  const ShowNonLocalHostMenuItems = () => {
+    const cachedFilter = global.fs.browser.workspaces.filter(x => !x.name.includes('localhost'))
+    return (
+      <>
+        {
+          currentWorkspace === LOCALHOST && cachedFilter.length > 0 ? cachedFilter.map(({ name, isGitRepo }, index) => (
+            <Dropdown.Item
+              key={index}
+              onClick={() => {
+                switchWorkspace(name)
+              }}
+              data-id={`dropdown-item-${name}`}
+            >
+              <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} />
+            </Dropdown.Item>
+          )) : <ShowAllMenuItems />
+        }
+      </>
+    )
+  }
+
+  const ShowAllMenuItems = () => {
+    return (
+      <>
+        { global.fs.browser.workspaces.map(({ name, isGitRepo }, index) => (
+          <Dropdown.Item
+            key={index}
+            onClick={() => { switchWorkspace(name) }}
+            data-id={`dropdown-item-${name}`}
+          >
+            <IsGitRepoDropDownMenuItem isGitRepo={isGitRepo} mName={name} />
+          </Dropdown.Item>
+        ))}
+      </>
+    )
+  }
+  const [togglerText, setTogglerText] = useState<'Connecting' | 'Connected to Local FileSystem'>('Connecting')
+
+  useEffect(() => {
+    setTimeout(() => {
+      setTogglerText('Connected to Local FileSystem')
+    }, 1000)
+  }, [selectedWorkspace])
+
+  const WorkspaceDropdownToggle = () => {
+    const [togglerText, setTogglerText] = useState<'Connecting' | 'Connected to Local FileSystem'>('Connecting')
+
+    useEffect(() => {
+      setTimeout(() => {
+        setTogglerText('Connected to Local FileSystem')
+      }, 1000)
+    }, [selectedWorkspace])
+
+    return (
+      <Dropdown.Toggle
+        as={CustomToggle}
+        id="dropdown-custom-components"
+        className="btn btn-light btn-block w-100 d-inline-block border border-dark form-control mt-1"
+        icon={selectedWorkspace && selectedWorkspace.isGitRepo && !(currentWorkspace === LOCALHOST) ? 'far fa-code-branch' : null}
+      >
+        {selectedWorkspace ? selectedWorkspace.name === LOCALHOST ? togglerText : selectedWorkspace.name : currentWorkspace === LOCALHOST ? formatNameForReadonly('localhost') : NO_WORKSPACE}
+      </Dropdown.Toggle>
+    )
+  }
+
   return (
     <div className="d-flex flex-column justify-content-between h-100">
       <div
@@ -912,7 +1023,7 @@ export function Workspace() {
             <header>
               <div className="mx-2 my-2 d-flex flex-column">
                 <div className="mx-2 d-flex">
-                  {currentWorkspace !== LOCALHOST ? (
+                  { currentWorkspace !== LOCALHOST ? (
                     <span className="remixui_topmenu d-flex">
                       <Dropdown id="workspacesMenuDropdown" data-id="workspacesMenuDropdown" onToggle={() => hideIconsMenu(!showIconsMenu)} show={showIconsMenu}>
                         <Dropdown.Toggle
@@ -926,6 +1037,8 @@ export function Workspace() {
                           <HamburgerMenu
                             selectedWorkspace={selectedWorkspace}
                             createWorkspace={createWorkspace}
+                            handleRemixdWorkspace={()=>switchWorkspace(LOCALHOST)}
+                            createBlankWorkspace={createBlankWorkspace}
                             renameCurrentWorkspace={renameCurrentWorkspace}
                             downloadCurrentWorkspace={downloadCurrentWorkspace}
                             deleteCurrentWorkspace={deleteCurrentWorkspace}
@@ -948,7 +1061,7 @@ export function Workspace() {
                     <span className="d-flex">
                       <label className="pl-2 form-check-label" style={{ wordBreak: 'keep-all' }}>
                         {(platform == appPlatformTypes.desktop) ? (
-                          <ElectronWorkspaceName plugin={global.plugin} path={global.fs.browser.currentLocalFilePath} />
+                          null
                         ) : <FormattedMessage id='filePanel.workspace' />}
                       </label>
                       {selectedWorkspace && selectedWorkspace.name === 'code-sample' && <CustomTooltip
@@ -965,7 +1078,7 @@ export function Workspace() {
                       </CopyToClipboard>
                       }
                     </span>
-                    <span className="d-flex">
+                    <span className="d-flex" style={{ cursor: 'pointer' }} >
                       {
                         (!appContext.appState.gitHubUser || !appContext.appState.gitHubUser.isConnected) && <CustomTooltip
                           placement="right"
@@ -975,7 +1088,7 @@ export function Workspace() {
                         >
                           <div data-id='filepanel-login-github' className='d-flex'>
                             <i onClick={() => logInGithub() } className="fa-brands fa-github-alt ml-2 align-self-center" style={{ fontSize: '1.1rem', cursor: 'pointer' }} aria-hidden="true"></i>
-                            <span onClick={() => logInGithub() } className="ml-1 style={{ cursor: 'pointer' }} "> Sign in </span>
+                            <span onClick={() => logInGithub() } className="ml-1"> Sign in </span>
                           </div>
                         </CustomTooltip>
                       }
@@ -1001,54 +1114,10 @@ export function Workspace() {
                         className="btn btn-light btn-block w-100 d-inline-block border border-dark form-control mt-1"
                         icon={selectedWorkspace && selectedWorkspace.isGitRepo && !(currentWorkspace === LOCALHOST) ? 'far fa-code-branch' : null}
                       >
-                        {selectedWorkspace ? selectedWorkspace.name : currentWorkspace === LOCALHOST ? formatNameForReadonly('localhost') : NO_WORKSPACE}
+                        {selectedWorkspace ? selectedWorkspace.name === LOCALHOST ? togglerText : selectedWorkspace.name : currentWorkspace === LOCALHOST ? formatNameForReadonly('localhost') : NO_WORKSPACE}
                       </Dropdown.Toggle>
-
                       <Dropdown.Menu as={CustomMenu} className="w-100 custom-dropdown-items" data-id="custom-dropdown-items">
-                        <Dropdown.Item
-                          onClick={() => {
-                            createWorkspace()
-                          }}
-                        >
-                          {
-                            <span className="pl-3">
-                              {' '}
-                            - <FormattedMessage id="filePanel.createNewWorkspace" /> -{' '}
-                            </span>
-                          }
-                        </Dropdown.Item>
-                        <Dropdown.Item
-                          onClick={() => {
-                            switchWorkspace(LOCALHOST)
-                          }}
-                        >
-                          {currentWorkspace === LOCALHOST ? (
-                            <span>&#10003; localhost </span>
-                          ) : (
-                            <span className="pl-3">
-                              {' '}
-                              <FormattedMessage id="filePanel.connectToLocalhost" />{' '}
-                            </span>
-                          )}
-                        </Dropdown.Item>
-                        {global.fs.browser.workspaces.map(({ name, isGitRepo }, index) => (
-                          <Dropdown.Item
-                            key={index}
-                            onClick={() => {
-                              switchWorkspace(name)
-                            }}
-                            data-id={`dropdown-item-${name}`}
-                          >
-                            {isGitRepo ? (
-                              <div className="d-flex justify-content-between">
-                                <span>{currentWorkspace === name ? <span>&#10003; {name} </span> : <span className="pl-3">{name}</span>}</span>
-                                <i className="fas fa-code-branch pt-1"></i>
-                              </div>
-                            ) : (
-                              <span>{currentWorkspace === name ? <span>&#10003; {name} </span> : <span className="pl-3">{name}</span>}</span>
-                            )}
-                          </Dropdown.Item>
-                        ))}
+                        <ShowNonLocalHostMenuItems />
                         {(global.fs.browser.workspaces.length <= 0 || currentWorkspace === NO_WORKSPACE) && (
                           <Dropdown.Item
                             onClick={() => {
@@ -1060,7 +1129,7 @@ export function Workspace() {
                         )}
                       </Dropdown.Menu>
                     </Dropdown>
-                  ):null}
+                  ):<ElectronWorkspaceName plugin={global.plugin} path={global.fs.browser.currentLocalFilePath} />}
                 </div>
               </div>
             </header>
@@ -1082,8 +1151,7 @@ export function Workspace() {
                 <FileExplorer
                   fileState={global.fs.browser.fileState}
                   name={currentWorkspace}
-                  menuItems={['createNewFile', 'createNewFolder', selectedWorkspace && selectedWorkspace.isGist ? 'updateGist' : 'publishToGist', canUpload ? 'uploadFile' : '', canUpload ? 'uploadFolder' : '', 'importFromIpfs',
-                    'importFromHttps']}
+                  menuItems={['createNewFile', 'createNewFolder', selectedWorkspace && selectedWorkspace.isGist ? 'updateGist' : 'publishToGist', canUpload ? 'uploadFile' : '', canUpload ? 'uploadFolder' : '', 'importFromIpfs','importFromHttps', 'initializeWorkspaceAsGitRepo']}
                   contextMenuItems={global.fs.browser.contextMenu.registeredMenuItems}
                   removedContextMenuItems={global.fs.browser.contextMenu.removedMenuItems}
                   files={global.fs.browser.files}
@@ -1112,6 +1180,7 @@ export function Workspace() {
                   dispatchCopyFolder={global.dispatchCopyFolder}
                   dispatchPublishToGist={global.dispatchPublishToGist}
                   dispatchRunScript={global.dispatchRunScript}
+                  dispatchSignTypedData={global.dispatchSignTypedData}
                   dispatchEmitContextMenuEvent={global.dispatchEmitContextMenuEvent}
                   dispatchHandleClickFile={global.dispatchHandleClickFile}
                   dispatchSetFocusElement={global.dispatchSetFocusElement}
@@ -1188,6 +1257,7 @@ export function Workspace() {
                   dispatchCopyFolder={global.dispatchCopyFolder}
                   dispatchPublishToGist={global.dispatchPublishToGist}
                   dispatchRunScript={global.dispatchRunScript}
+                  dispatchSignTypedData={global.dispatchSignTypedData} //
                   dispatchEmitContextMenuEvent={global.dispatchEmitContextMenuEvent}
                   dispatchHandleClickFile={global.dispatchHandleClickFile}
                   dispatchSetFocusElement={global.dispatchSetFocusElement}
@@ -1232,29 +1302,39 @@ export function Workspace() {
           <div className="d-flex justify-content-between p-1">
             <div className="text-uppercase text-dark pt-1 px-1">GIT</div>
             { selectedWorkspace.hasGitSubmodules?
-              <CustomTooltip
-                placement="top"
-                tooltipId="updateSubmodules"
-                tooltipClasses="text-nowrap"
-                tooltipText={<FormattedMessage id="filePanel.updateSubmodules" />}
-              >
-                <div className="pr-1">
-                  { global.fs.browser.isRequestingCloning ? <button style={{ height: 30, minWidth: "9rem" }} className='btn btn-sm border text-dark'>
-                    <i className="fad fa-spinner fa-spin"></i>
-                  Updating submodules
-                  </button> :
+
+              <div className="pr-1">
+                { global.fs.browser.isRequestingCloning ?
+                  <CustomTooltip
+                    placement="top"
+                    tooltipId="updatingSubmodules"
+                    tooltipClasses="text-nowrap"
+                    tooltipText={"Updating submodules"}
+                  >
+                    <button style={{ height: 30, minWidth: "9rem" }} className='btn btn-sm border text-dark'>
+                      <i className="fad fa-spinner fa-spin mr-2"></i>
+                        Updating...
+                    </button>
+                  </CustomTooltip> :
+                  <CustomTooltip
+                    placement="top"
+                    tooltipId="updateSubmodules"
+                    tooltipClasses="text-nowrap"
+                    tooltipText={<FormattedMessage id="filePanel.updateSubmodules" />}
+                  >
                     <button style={{ height: 30, minWidth: "9rem" }} onClick={updateSubModules} data-id='updatesubmodules' className={`btn btn-sm border  ${highlightUpdateSubmodules ? 'text-warning' : 'text-dark'}`}>
-                    Update submodules
-                    </button> }
-                </div>
-              </CustomTooltip>
+                       Update submodules
+                    </button>
+                  </CustomTooltip>
+                }
+              </div>
               : null
             }
             <CustomTooltip
               placement="right"
               tooltipId="branchesDropdown"
               tooltipClasses="text-nowrap"
-              tooltipText={'Current branch: ' + currentBranch || 'Branches'}
+              tooltipText={'Current branch: ' + (currentBranch && currentBranch.name) || 'Branches'}
             >
               <div className="pt-0 mr-2" data-id="workspaceGitBranchesDropdown">
                 <Dropdown style={{ height: 30, maxWidth: "6rem", minWidth: "6rem" }} onToggle={toggleBranches} show={showBranches} drop={'up'}>
@@ -1352,6 +1432,7 @@ export function Workspace() {
           deletePath={deletePath}
           renamePath={editModeOn}
           runScript={runScript}
+          signTypedData={signTypedData}
           copy={handleCopyClick}
           paste={handlePasteClick}
           copyFileName={handleCopyFileNameClick}

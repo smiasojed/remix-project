@@ -123,7 +123,7 @@ export function checkError (execResult, compiledContracts) {
                   } catch (e) {
                     console.error(e.message)
                   }
-                  // we check in the 'userdoc' if there's an user documentation for this error
+                  // we check in the 'userdoc' if there's a user documentation for this error
                   try {
                     const userdoc = (contract.userdoc.errors && contract.userdoc.errors[functionSignature][0]) || {}
                     if (userdoc && (userdoc as any).notice) customError += ' : ' + (userdoc as any).notice // we append the user doc if any
@@ -172,6 +172,6 @@ export function checkError (execResult, compiledContracts) {
     msg = '\tState changes is not allowed in Static Call context\n'
     ret.error = true
   }
-  ret.message = `${error}\n${exceptionError}\n${msg}\nYou may want to cautiously increase the gas limit if the transaction went out of gas.`
+  ret.message = `${error}\n${exceptionError}\n${msg}\nIf the transaction failed for not having enough gas, try increasing the gas limit gently.`
   return ret
 }

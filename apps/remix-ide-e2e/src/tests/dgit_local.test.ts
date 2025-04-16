@@ -37,6 +37,7 @@ module.exports = {
             .waitForElementVisible('*[data-id="initgit-btn"]')
             .click('*[data-id="initgit-btn"]')
             .waitForElementVisible('*[data-id="github-panel"]')
+            .pause(1000)
             .click('*[data-id="github-panel"]')
             .waitForElementVisible('*[data-id="gitubUsername"]')
             .setValue('*[data-id="gitubUsername"]', 'git')
@@ -372,7 +373,10 @@ module.exports = {
     },
     'switch to origin2 #group4': function (browser: NightwatchBrowser) {
         browser
+            .waitForElementVisible('*[data-id="remotes-panel"]')
+            .pause(2000)
             .click('*[data-id="remotes-panel"]')
+            .waitForElementVisible('*[data-id="fetch-repositories"]')
             .waitForElementVisible('*[data-id="set-as-default-origin2"]')
             .click('*[data-id="set-as-default-origin2"]')
     },
@@ -408,7 +412,10 @@ module.exports = {
     },
     'switch to origin #group4': function (browser: NightwatchBrowser) {
         browser
+            .waitForElementVisible('*[data-id="remotes-panel"]')
+            .pause(2000)
             .click('*[data-id="remotes-panel"]')
+            .waitForElementVisible('*[data-id="fetch-repositories"]')
             .waitForElementVisible('*[data-id="set-as-default-origin"]')
             .click('*[data-id="set-as-default-origin"]')
     },
@@ -425,7 +432,7 @@ module.exports = {
             .pause(1000)
             .waitForElementVisible('*[data-id="sourcecontrol-panel"]')
             .click('*[data-id="sourcecontrol-panel"]')
-            .waitForElementVisible('*[data-id="syncButton"]')
+            .waitForElementVisible('*[data-id="syncButton"]', 60000)
             // do not sync
             .click('*[data-id="commits-panel"]')
             .waitForElementPresent({
@@ -582,7 +589,7 @@ async function createCommitOnLocalServer(path: string, message: string) {
         });
 
         git.stderr.on('data', function (data) {
-            console.error('data commiting', data.toString());
+            console.error('data committing', data.toString());
             reject(data.toString());
         });
 
@@ -606,7 +613,7 @@ async function createCommitOnLocalServer(path: string, message: string) {
 async function spawnGitServer(path: string): Promise<ChildProcess> {
     console.log(process.cwd())
     try {
-        const server = spawn('yarn && sh setup.sh && npx ts-node server.ts', [`${path}`], { cwd: process.cwd() + '/apps/remix-ide-e2e/src/githttpbackend/', shell: true, detached: true })
+        const server = spawn('yarn && sh setup.sh && yarn start:server', [`${path}`], { cwd: process.cwd() + '/apps/remix-ide-e2e/src/githttpbackend/', shell: true, detached: true })
         console.log('spawned', server.stdout.closed, server.stderr.closed)
         return new Promise((resolve, reject) => {
             server.stdout.on('data', function (data) {

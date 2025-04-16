@@ -1,5 +1,5 @@
 /* global describe, before, it */
-import Web3 from 'web3'
+import { Web3 } from 'web3'
 import { Provider } from '../src/index'
 const web3 = new Web3()
 import * as assert from 'assert'
@@ -60,6 +60,17 @@ describe('blocks', () => {
     it('should get current block number', async () => {
       const number = await web3.eth.getBlockNumber()
       assert.equal(number, 0)
+    })
+  })
+
+  describe('evm_mine', () => {
+    it('should mine empty block using evm_mine', async function () {
+      await web3.provider.request({
+        method: 'evm_mine',
+        params: [{ blocks: 3 }],
+      })
+      const number = await web3.eth.getBlockNumber()
+      assert.equal(number, 3)
     })
   })
 

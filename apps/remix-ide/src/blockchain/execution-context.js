@@ -1,6 +1,6 @@
 /* global ethereum */
 'use strict'
-import Web3 from 'web3'
+import { Web3 } from 'web3'
 import { execution } from '@remix-project/remix-lib'
 import EventManager from '../lib/events'
 import { bytesToHex } from '@ethereumjs/util'
@@ -99,8 +99,9 @@ export class ExecutionContext {
               callback && callback(err, { id, name, lastBlock: this.lastBlock, currentFork: this.currentFork })
               return resolve({ id, name, lastBlock: this.lastBlock, currentFork: this.currentFork })
             }).catch((error) => {
-              callback && callback(error)
-              return reject(error)
+              // Rabby wallet throws an error at this point. We are in that case unable to check the genesis hash.
+              callback && callback(err, { id, name, lastBlock: this.lastBlock, currentFork: this.currentFork })
+              return resolve({ id, name, lastBlock: this.lastBlock, currentFork: this.currentFork })
             })
           } else {
             callback && callback(err, { id, name, lastBlock: this.lastBlock, currentFork: this.currentFork })
@@ -148,7 +149,7 @@ export class ExecutionContext {
     if (this.customNetWorks[context]) {
       var network = this.customNetWorks[context]
       await network.init()
-      this.currentFork = network.fork
+      this.currentFork = network.config.fork
       this.executionContext = context
       // injected
       web3.setProvider(network.provider)
@@ -215,7 +216,8 @@ export class ExecutionContext {
     const state = {
       db: Object.fromEntries(stateDb.db._database),
       blocks: blocksData.blocks,
-      latestBlockNumber: blocksData.latestBlockNumber
+      latestBlockNumber: blocksData.latestBlockNumber,
+      baseBlockNumber: blocksData.baseBlockNumber
     }
     const stringifyed = JSON.stringify(state, (key, value) => {
       if (key === 'db') {

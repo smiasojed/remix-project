@@ -4,7 +4,8 @@ import { gitPluginContext } from "../../gitui";
 import { selectStyles, selectTheme } from "../../../types/styles";
 import Select, { Options, OptionsOrGroups } from 'react-select'
 import GitUIButton from "../../buttons/gituibutton";
-import { gitMatomoEventTypes, remote } from "../../../types";
+import { remote } from "@remix-api";
+import { gitMatomoEventTypes } from "../../../types";
 import { relative } from "path";
 import { sendToMatomo } from "../../../lib/pluginActions";
 
@@ -203,7 +204,7 @@ export const PushPull = () => {
       />
 
       <div className="pt-3 d-flex align-items-center remixui_compilerConfig custom-control custom-checkbox">
-        <input checked={force} onChange={e => onForceChange(e)} className="remixui_autocompile form-check-input custom-control-input" type="checkbox" data-id="compilerContainerAutoCompile" id="forcepush" title="Force Push" />
+        <input checked={force} onChange={e => onForceChange(e)} className="form-check-input custom-control-input" type="checkbox" data-id="compilerContainerAutoCompile" id="forcepush" title="Force Push" />
         <label className="form-check-label custom-control-label " htmlFor="forcepush">Force push</label>
       </div>
 

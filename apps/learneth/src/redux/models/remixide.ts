@@ -15,6 +15,7 @@ const Model: ModelType = {
     success: false,
     errorLoadingFile: false,
     // theme: '',
+    localeCode: 'en'
   },
   reducers: {
     save(state, { payload }) {
@@ -32,7 +33,9 @@ const Model: ModelType = {
         },
       })
 
-      yield remixClient.onload()
+      yield remixClient.onload(() => {
+        remixClient.call('manager', 'activatePlugin', 'solidityUnitTesting')
+      })
 
       toast.dismiss()
 
@@ -167,7 +170,6 @@ const Model: ModelType = {
           (<any>window)._paq.push(['trackEvent', 'learneth', 'test_step', success])
         }
       } catch (err) {
-        console.log('TESTING ERROR', err)
         yield put({
           type: 'remixide/save',
           payload: { errors: [String(err)]},

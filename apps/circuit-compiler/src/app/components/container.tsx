@@ -1,17 +1,17 @@
 import { useContext } from 'react'
-import { CustomTooltip, RenderIf } from '@remix-ui/helper'
+import { CompileBtn, CustomTooltip, RenderIf } from '@remix-ui/helper'
 import { FormattedMessage } from 'react-intl'
 import { CircuitAppContext } from '../contexts'
-import { CompileOptions } from './options'
+import { CompileOptions, CompilerReport } from '@remix-ui/helper'
 import { VersionList } from './versions'
 import { Toggler } from './toggler'
 import { Configurations } from './configurations'
-import { CircuitActions } from './actions'
 import { WitnessSection } from './witness'
-import { CompilerFeedback } from './feedback'
-import { CompilerReport, PrimeValue } from '../types'
+import { CompilerFeedback } from '@remix-ui/helper'
+import { PrimeValue } from '../types'
 import { SetupExports } from './setupExports'
 import { GenerateProof } from './generateProof'
+import { compileCircuit } from '../actions'
 
 export function Container () {
   const circuitApp = useContext(CircuitAppContext)
@@ -34,15 +34,19 @@ export function Container () {
     circuitApp.dispatch({ type: 'SET_COMPILER_VERSION', payload: version })
   }
 
-  const handleOpenErrorLocation = async (location: string, startRange: string) => {
-    if (location) {
-      const fullPathLocation = await circuitApp.plugin.resolveReportPath(location)
+  const handleOpenErrorLocation = async (report: CompilerReport) => {
+    if (report.labels.length > 0) {
+      const location = circuitApp.appState.filePathToId[report.labels[0].file_id]
+      const startRange = report.labels[0].range.start
+      if (location) {
+        const fullPathLocation = await circuitApp.plugin.resolveReportPath(location)
 
-      await circuitApp.plugin.call('fileManager', 'open', fullPathLocation)
-      // @ts-ignore
-      const startPosition: { lineNumber: number; column: number } = await circuitApp.plugin.call('editor', 'getPositionAt', startRange)
-      // @ts-ignore
-      await circuitApp.plugin.call('editor', 'gotoLine', startPosition.lineNumber - 1, startPosition.column)
+        await circuitApp.plugin.call('fileManager', 'open', fullPathLocation)
+        // @ts-ignore
+        const startPosition: { lineNumber: number; column: number } = await circuitApp.plugin.call('editor', 'getPositionAt', startRange)
+        // @ts-ignore
+        await circuitApp.plugin.call('editor', 'gotoLine', startPosition.lineNumber - 1, startPosition.column)
+      }
     }
   }
 
@@ -73,16 +77,20 @@ export function Container () {
           full circom error: ${JSON.stringify(report, null, 2)}
           explain why the error occurred and how to fix it.
           `
-        // @ts-ignore
-        await circuitApp.plugin.call('solcoder', 'error_explaining', message)
+        await circuitApp.plugin.call('popupPanel' as any, 'showPopupPanel', true)
+        setTimeout(async () => {
+          await circuitApp.plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', message)
+        }, 500)
       } else {
         const message = `
           error message: ${error}
           full circom error: ${JSON.stringify(report, null, 2)}
           explain why the error occurred and how to fix it.
           `
-        // @ts-ignore
-        await circuitApp.plugin.call('solcoder', 'error_explaining', message)
+        await circuitApp.plugin.call('popupPanel' as any, 'showPopupPanel', true)
+        setTimeout(async () => {
+          await circuitApp.plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', message)
+        }, 500)
       }
     } else {
       const error = report.message
@@ -91,9 +99,15 @@ export function Container () {
       full circom error: ${JSON.stringify(report, null, 2)}
       explain why the error occurred and how to fix it.
       `
-      // @ts-ignore
-      await circuitApp.plugin.call('solcoder', 'error_explaining', message)
+      await circuitApp.plugin.call('popupPanel' as any, 'showPopupPanel', true)
+      setTimeout(async () => {
+        await circuitApp.plugin.call('remixAI' as any, 'chatPipe', 'error_explaining', message)
+      }, 500)
     }
+  }
+
+  const handleCompileClick = () => {
+    compileCircuit(circuitApp.plugin, circuitApp.appState)
   }
 
   return (
@@ -112,12 +126,14 @@ export function Container () {
             >
               <span className="far fa-file-certificate border-0 p-0 ml-2" onClick={() => showCompilerLicense()}></span>
             </CustomTooltip>
-            <VersionList setVersion={handleVersionSelect} versionList={circuitApp.appState.versionList} currentVersion={circuitApp.appState.version} />
+            <VersionList setVersion={handleVersionSelect} versionList={circuitApp.appState.versionList} currentVersion={circuitApp.appState.version} downloadList={circuitApp.appState.versionDownloadList} />
             <CompileOptions setCircuitAutoCompile={handleCircuitAutoCompile} setCircuitHideWarnings={handleCircuitHideWarnings} autoCompile={circuitApp.appState.autoCompile} hideWarnings={circuitApp.appState.hideWarnings} />
             <Toggler title='circuit.advancedConfigurations' dataId=''>
               <Configurations setPrimeValue={handlePrimeChange} primeValue={circuitApp.appState.primeValue} versionValue={circuitApp.appState.version} />
             </Toggler>
-            <CircuitActions />
+            <div className="pb-2">
+              <CompileBtn id='circuit' plugin={circuitApp.plugin} appState={circuitApp.appState} compileAction={handleCompileClick} />
+            </div>
             <RenderIf condition={circuitApp.appState.status !== 'compiling'}>
               <CompilerFeedback feedback={circuitApp.appState.compilerFeedback} filePathToId={circuitApp.appState.filePathToId} openErrorLocation={handleOpenErrorLocation} hideWarnings={circuitApp.appState.hideWarnings} askGPT={askGPT} />
             </RenderIf>

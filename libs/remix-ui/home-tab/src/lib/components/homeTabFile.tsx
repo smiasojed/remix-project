@@ -127,7 +127,7 @@ function HomeTabFile({ plugin }: HomeTabFileProps) {
     plugin.verticalIcons.select('filePanel')
   }
 
-  const handleSwichToRecentWorkspace = async (e, workspaceName) => {
+  const handleSwitchToRecentWorkspace = async (e, workspaceName) => {
     e.preventDefault()
     plugin.call('sidePanel', 'showContent', 'filePanel')
     plugin.verticalIcons.select('filePanel')
@@ -146,17 +146,17 @@ function HomeTabFile({ plugin }: HomeTabFileProps) {
                 Recent Workspaces
               </label>
               {state.recentWorkspaces[0] && state.recentWorkspaces[0] !== '' && (
-                <a className="cursor-pointer mb-1 ml-2" href="#" onClick={(e) => handleSwichToRecentWorkspace(e, state.recentWorkspaces[0])}>
+                <a className="cursor-pointer mb-1 ml-2" href="#" onClick={(e) => handleSwitchToRecentWorkspace(e, state.recentWorkspaces[0])}>
                   {state.recentWorkspaces[0]}
                 </a>
               )}
               {state.recentWorkspaces[1] && state.recentWorkspaces[1] !== '' && (
-                <a className="cursor-pointer mb-1 ml-2" href="#" onClick={(e) => handleSwichToRecentWorkspace(e, state.recentWorkspaces[1])}>
+                <a className="cursor-pointer mb-1 ml-2" href="#" onClick={(e) => handleSwitchToRecentWorkspace(e, state.recentWorkspaces[1])}>
                   {state.recentWorkspaces[1]}
                 </a>
               )}
               {state.recentWorkspaces[2] && state.recentWorkspaces[2] !== '' && (
-                <a className="cursor-pointer ml-2" href="#" onClick={(e) => handleSwichToRecentWorkspace(e, state.recentWorkspaces[2])}>
+                <a className="cursor-pointer ml-2" href="#" onClick={(e) => handleSwitchToRecentWorkspace(e, state.recentWorkspaces[2])}>
                   {state.recentWorkspaces[2]}
                 </a>
               )}
@@ -169,7 +169,7 @@ function HomeTabFile({ plugin }: HomeTabFileProps) {
           </label>
           <div className="d-flex flex-row flex-wrap">
             <CustomTooltip placement={'top'} tooltipId="overlay-tooltip" tooltipClasses="text-nowrap" tooltipText={<FormattedMessage id="home.newFileTooltip" />} tooltipTextClasses="border bg-light text-dark p-1 pr-3">
-              <button className="btn btn-primary text-nowrap p-2 mr-2 border my-1 mb-2" data-id="homeTabNewFile" style={{ width: 'fit-content' }} onClick={async () => {
+              <button className="btn text-nowrap p-2 mr-2 border my-1 mb-2" data-id="homeTabNewFile" style={{ width: 'fit-content' }} onClick={async () => {
                 _paq.push(['trackEvent', 'hometab', 'filesSection', 'newFile'])
                 await plugin.call('menuicons', 'select', 'filePanel')
                 await plugin.call('filePanel', 'createNewFile')

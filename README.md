@@ -9,10 +9,10 @@
 [![CircleCI](https://img.shields.io/circleci/build/github/ethereum/remix-project?logo=circleci)](https://circleci.com/gh/ethereum/remix-project)
 [![Documentation Status](https://readthedocs.org/projects/remix-ide/badge/?version=latest)](https://remix-ide.readthedocs.io/en/latest/index.html)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen.svg?style=flat&logo=github)](https://github.com/ethereum/remix-project/blob/master/CONTRIBUTING.md)
-[![GitHub contributors](https://img.shields.io/github/contributors/ethereum/remix-project?style=flat&logo=github)](https://github.com/ethereum/remix-project/blob/master/CONTRIBUTING.md)
+[![GitHub contributors](https://img.shields.io/github/contributors/ethereum/remix-project?style=flat&logo=github)](https://github.com/ethereum/remix-project/graphs/contributors)
 [![Awesome Remix](https://img.shields.io/badge/Awesome--Remix-resources-green?logo=awesomelists)](https://github.com/ethereum/awesome-remix)
-![GitHub](https://img.shields.io/github/license/ethereum/remix-project)
-[![Discord](https://img.shields.io/badge/join-discord-brightgreen.svg?style=flat&logo=discord)](https://discord.gg/mh9hFCKkEq)
+[![GitHub](https://img.shields.io/github/license/ethereum/remix-project)](https://github.com/ethereum/remix-project/blob/master/LICENSE)
+[![Discord](https://img.shields.io/badge/join-discord-brightgreen.svg?style=flat&logo=discord)](https://discord.gg/mMNnEgsRzh)
 [![X Follow](https://img.shields.io/twitter/follow/ethereumremix?style=flat&logo=x&color=green)](https://x.com/ethereumremix)
 
 </div>
@@ -68,7 +68,7 @@ git clone https://github.com/ethereum/remix-project.git
 2. Install dependencies: `yarn install` or simply run `yarn`
 3. Build Remix libraries: `yarn run build:libs`
 4. Build Remix project: `yarn build`
-5. Build and run project server: `yarn serve`. Optionally, run `yarn serve:hot` to enable hot module reload for frontend updates.
+5. Build and run project server: `yarn serve`. Optionally, run `yarn serve:hot` to enable hot module to reload for frontend updates.
 
 Open `http://127.0.0.1:8080` in your browser to load Remix IDE locally.
 
@@ -178,7 +178,7 @@ You need to have
 
 ### Splitting tests with groups
 
-Groups can be used to group tests in a test file together. The advantage is you can avoid running long test files when you want to focus on a specific set of tests within a test file.x
+Groups can be used to group tests in a test file together. The advantage is you can avoid running long test files when you want to focus on a specific set of tests within a test file.
 
 These groups only apply to the test file, not across all test files. So for example group1 in the ballot is not related to a group1 in another test file.
 
@@ -267,4 +267,4 @@ parameters:
 - Curated list of Remix resources: https://github.com/ethereum/awesome-remix
 - Medium: https://medium.com/remix-ide
 - X: https://x.com/ethereumremix
-- Join Discord: https://discord.gg/mh9hFCKkEq
+- Join Discord: https://discord.gg/mMNnEgsRzh

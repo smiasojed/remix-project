@@ -235,17 +235,12 @@ export const RemixUiTerminal = (props: RemixUiTerminalProps) => {
     try {
       if (script.trim().startsWith('git')) {
         // await this.call('git', 'execute', script) code might be used in the future
-        // TODO: rm gpt or redirect gpt to sol-pgt
-      } else if (script.trim().startsWith('gpt')) {
+      } else if (script.trim().startsWith('gpt') || script.trim().startsWith('sol-gpt')) {
         call('terminal', 'log',{ type: 'warn', value: `> ${script}` })
-        await call('solcoder', 'solidity_answer', script)
-        _paq.push(['trackEvent', 'ai', 'solcoder', 'askFromTerminal'])
-      } else if (script.trim().startsWith('sol-gpt')) {
-        call('terminal', 'log',{ type: 'warn', value: `> ${script}` })
-        await call('solcoder', 'solidity_answer', script)
-        _paq.push(['trackEvent', 'ai', 'solcoder', 'askFromTerminal'])
+        await call('remixAI', 'solidity_answer', script) // No streaming supported in terminal
+        _paq.push(['trackEvent', 'ai', 'remixAI', 'askFromTerminal'])
       } else {
-        await call('scriptRunner', 'execute', script)
+        await call('scriptRunnerBridge', 'execute', script)
       }
       done()
     } catch (error) {
